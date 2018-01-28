@@ -22,6 +22,7 @@
 
 if [[ $(id -u) -ne 0 ]] ; then
     printf "must be a superuser!!!\n" >&2
+
     exit 1
 fi
 
@@ -31,25 +32,89 @@ install_dir="/usr/local/src/$package"
 archive_version="1.1.2"
 archive_file="$archive_version.tar.gz"
 
-apt-get update && apt-get -y install wget build-essential cmake
+apt-get update
+rc=$?
 
-[[ ! -d "$install_dir" ]] && mkdir --parents "$install_dir"
+[[ $rc -ne 0 ]] && exit $rc
+
+apt-get -y install wget \
+                   build-essential \
+                   cmake
+rc=$?
+
+[[ $rc -ne 0 ]] && exit $rc
+
+if [[ ! -d "$install_dir" ]] ; then
+    mkdir --parents \
+          "$install_dir"
+    rc=$?
+
+    [[ $rc -ne 0 ]] && exit $rc
+fi
 
 cd "$install_dir"
+rc=$?
 
-[[ ! -f "$archive_file" ]] && wget "https://github.com/$package/$package/archive/$archive_file"
+[[ $rc -ne 0 ]] && exit $rc
 
-[[ ! -d "$package-$archive_version" ]] && tar -zxvf "$archive_file"
+if [[ ! -f "$archive_file" ]] ; then
+    wget "https://github.com/$package/$package/archive/$archive_file"
+    rc=$?
+
+    [[ $rc -ne 0 ]] && exit $rc
+fi
+
+if [[ ! -d "$package-$archive_version" ]] ; then
+    tar -zxvf "$archive_file"
+    rc=$?
+
+    [[ $rc -ne 0 ]] && exit $rc
+fi
 
 cd "$package-$archive_version"
+rc=$?
 
-mkdir build && cd build
+[[ $rc -ne 0 ]] && exit $rc
 
-cmake -DCMAKE_INSTALL_PREFIX="/usr/local" ..
-cmake --build .
-ctest -C Debug .
-cmake --build . --target install
+mkdir "build"
+rc=$?
 
-ldconfig
+[[ $rc -ne 0 ]] && exit $rc
+
+cd "build"
+rc=$?
+
+[[ $rc -ne 0 ]] && exit $rc
+
+install_prefix="/usr/local"
+
+cmake -DCMAKE_INSTALL_PREFIX="$install_prefix" \
+      ..
+rc=$?
+
+[[ $rc -ne 0 ]] && exit $rc
+
+cmake --build \
+      .
+rc=$?
+
+[[ $rc -ne 0 ]] && exit $rc
+
+ctest -C Debug \
+      .
+rc=$?
+
+[[ $rc -ne 0 ]] && exit $rc
+
+cmake --build . \
+      --target install
+rc=$?
+
+[[ $rc -ne 0 ]] && exit $rc
+
+ldconfig "$install_prefix/lib"
+rc=$?
+
+[[ $rc -ne 0 ]] && exit $rc
 
 exit 0
